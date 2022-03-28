@@ -184,6 +184,115 @@ bad:
     return (-1);
 }
 
+libnet_ptag_t
+libnet_build_mstp_conf(uint16_t id, uint8_t version, uint8_t bpdu_type,
+uint8_t flags, const uint8_t *root_id, uint32_t root_pc, const uint8_t *bridge_id,
+uint16_t port_id, uint16_t message_age, uint16_t max_age,
+uint16_t hello_time, uint16_t f_delay, uint8_t config_id, char *config_name, uint16_t config_rev, uint8_t *config_digest, uint32_t internal_root_pc,
+const uint8_t *cist_bridge_id, uint8_t remaining_hops, const uint8_t *payload, uint32_t payload_s, libnet_t *l, libnet_ptag_t ptag)
+{
+    uint32_t n, h;
+    libnet_pblock_t *p;
+    
+    uint8_t mstp_hdr[102];
+    uint16_t value_s;
+    uint32_t value_l;
+
+    if (l == NULL)
+    { 
+        return (-1);
+    } 
+
+    n = LIBNET_STP_CONF_H + payload_s;          /* size of memory block */
+    h = 0;                                      /* no checksum */
+
+    /*
+     *  Find the existing protocol block if a ptag is specified, or create
+     *  a new one.
+     */
+    p = libnet_pblock_probe(l, ptag, n, LIBNET_PBLOCK_STP_CONF_H);
+    if (p == NULL)
+    {
+        return (-1);
+    }
+
+    value_s = htons(id);
+    memcpy(stp_hdr, &value_s, 2);
+    stp_hdr[2] = version;
+    stp_hdr[3] = bpdu_type;
+    stp_hdr[4] = flags;
+    memcpy(&stp_hdr[5], root_id, 8);
+    value_l = htonl(root_pc);
+    memcpy(&stp_hdr[13], &value_l, 4);
+    memcpy(&stp_hdr[17], bridge_id, 8);
+    value_s = htons(port_id);
+    memcpy(&stp_hdr[25], &value_s, 2);
+#if (LIBNET_BIG_ENDIAN == 1)
+    value_s = htons(message_age);
+#else
+    value_s = message_age;
+#endif
+    memcpy(&stp_hdr[27], &value_s, 2);
+#if (LIBNET_BIG_ENDIAN == 1)
+    value_s = htons(max_age);
+#else
+    value_s = max_age;
+#endif
+    memcpy(&stp_hdr[29], &value_s, 2);
+#if (LIBNET_BIG_ENDIAN == 1)
+    value_s = htons(hello_time);
+#else
+    value_s = hello_time;
+#endif
+    memcpy(&stp_hdr[31], &value_s, 2);
+#if (LIBNET_BIG_ENDIAN == 1)
+    value_s = htons(f_delay);
+#else
+    value_s = f_delay;
+#endif
+    memcpy(&stp_hdr[33], &value_s, 2);
+    //v1 size is 0
+    stp_hdr[35] = 0;
+    //v2 size
+#if (LIBNET_BIG_ENDIAN == 1)
+    value_s = 2;
+#else
+    value_s = htons(f_delay);
+#endif
+    memcpy(&stp_hdr[36], &value_s, 2);
+        
+    //mstp fields
+    stp_hdr[38] = config_id;
+    memcpy(&stp_hdr[39], root_id, 32);
+#if (LIBNET_BIG_ENDIAN == 1)
+    value_s = htons(config_rev);
+#else
+    value_s = config_rev;
+#endif
+    memcpy(&stp_hdr[71], &value_s, 2);
+    memcpy(&stp_hdr[73], root_id, 16);
+    value_l = htonl(internal_root_pc);
+    memcpy(&stp_hdr[89], &value_l, 4);
+    memcpy(&stp_hdr[93], bridge_id, 8);
+    stp_hdr[101] = remaining_hops;
+
+    /* boilerplate payload sanity check / append macro */
+    LIBNET_DO_PAYLOAD(l, p);
+ 
+    return (ptag ? ptag : libnet_pblock_update(l, p, h,
+            LIBNET_PBLOCK_STP_CONF_H));
+bad:
+    libnet_pblock_delete(l, p);
+    return (-1);
+}
+
+libnet_ptag_t
+libnet_build_mstp_tcn(uint16_t id, uint8_t version, uint8_t bpdu_type,
+const uint8_t *payload, uint32_t payload_s, libnet_t *l, libnet_ptag_t ptag)
+{
+    
+}
+
 /**
  * Local Variables:
  *  indent-tabs-mode: nil
